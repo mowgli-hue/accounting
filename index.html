@@ -246,29 +246,46 @@
 
   <script>
     // --- Data ---
-    let people = JSON.parse(localStorage.getItem('acct_people') || '[]');
-    let transactions = JSON.parse(localStorage.getItem('acct_txns') || '[]');
+    let people = [];
+    let transactions = [];
 
-    function save() {
-      localStorage.setItem('acct_people', JSON.stringify(people));
-      localStorage.setItem('acct_txns', JSON.stringify(transactions));
+    // --- API helpers ---
+    async function api(method, url, body) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(url, opts);
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Something went wrong'); return null; }
+      return data;
+    }
+
+    async function loadFromServer() {
+      const data = await api('GET', '/api/data');
+      if (data) {
+        people = data.people;
+        transactions = data.transactions;
+        refreshDropdowns();
+        renderAll();
+      }
     }
 
     // --- Add Person ---
-    function addPerson() {
+    async function addPerson() {
       const input = document.getElementById('newPersonName');
       const name = input.value.trim();
       if (!name) return alert('Please enter a name.');
-      if (people.includes(name)) return alert('Person already exists.');
-      people.push(name);
-      save();
-      input.value = '';
-      refreshDropdowns();
-      renderAll();
+      const data = await api('POST', '/api/people', { name });
+      if (data) {
+        people = data.people;
+        transactions = data.transactions;
+        input.value = '';
+        refreshDropdowns();
+        renderAll();
+      }
     }
 
     // --- Add Transaction ---
-    function addTransaction() {
+    async function addTransaction() {
       const person = document.getElementById('personSelect').value;
       const type = document.getElementById('txnType').value;
       const amount = parseFloat(document.getElementById('txnAmount').value);
@@ -277,27 +294,25 @@
       if (!person) return alert('Please select a person.');
       if (!amount || amount <= 0) return alert('Please enter a valid amount.');
 
-      transactions.push({
-        id: Date.now(),
-        person,
-        type,
-        amount,
-        note,
-        date: new Date().toISOString()
-      });
-      save();
-
-      document.getElementById('txnAmount').value = '';
-      document.getElementById('txnNote').value = '';
-      renderAll();
+      const data = await api('POST', '/api/transactions', { person, type, amount, note });
+      if (data) {
+        people = data.people;
+        transactions = data.transactions;
+        document.getElementById('txnAmount').value = '';
+        document.getElementById('txnNote').value = '';
+        renderAll();
+      }
     }
 
     // --- Delete Transaction ---
-    function deleteTxn(id) {
+    async function deleteTxn(id) {
       if (!confirm('Delete this transaction?')) return;
-      transactions = transactions.filter(t => t.id !== id);
-      save();
-      renderAll();
+      const data = await api('DELETE', '/api/transactions/' + id);
+      if (data) {
+        people = data.people;
+        transactions = data.transactions;
+        renderAll();
+      }
     }
 
     // --- Dropdowns ---
@@ -402,8 +417,7 @@
     }
 
     // --- Init ---
-    refreshDropdowns();
-    renderAll();
+    loadFromServer();
 
     // Allow Enter key to add person
     document.getElementById('newPersonName').addEventListener('keydown', e => {

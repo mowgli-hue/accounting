@@ -307,7 +307,7 @@
     // --- Delete Transaction ---
     async function deleteTxn(id) {
       if (!confirm('Delete this transaction?')) return;
-      const data = await api('DELETE', '/api/transactions/' + id);
+      const data = await api('DELETE', '/api/transactions', { id });
       if (data) {
         people = data.people;
         transactions = data.transactions;

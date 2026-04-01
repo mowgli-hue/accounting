@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accounting Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin: 20px 0 30px;
+      color: #1a1a2e;
+      font-size: 28px;
+    }
+
+    /* Card style */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #1a1a2e;
+    }
+
+    /* Form elements */
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #555;
+    }
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #4361ee;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+    .row > div { flex: 1; }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary {
+      background: #4361ee;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #3a56d4; }
+    .btn-success {
+      background: #2ec4b6;
+      color: #fff;
+    }
+    .btn-success:hover { background: #28b0a3; }
+    .btn-danger {
+      background: #e63946;
+      color: #fff;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+    .btn-danger:hover { background: #cc2f3b; }
+
+    /* Add person row */
+    .add-person-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .add-person-row input { flex: 1; margin-bottom: 0; }
+    .add-person-row button { margin-bottom: 0; white-space: nowrap; }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      background: #f8f9fa;
+      font-size: 13px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #eee;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+    tr:hover td { background: #f8f9fa; }
+
+    .amount-given { color: #e63946; font-weight: 600; }
+    .amount-received { color: #2ec4b6; font-weight: 600; }
+    .balance-positive { color: #2ec4b6; font-weight: 700; }
+    .balance-negative { color: #e63946; font-weight: 700; }
+
+    /* Summary card */
+    .summary {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .summary-item {
+      flex: 1;
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .summary-item .label {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .summary-item .value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .summary-item.given .value { color: #e63946; }
+    .summary-item.received .value { color: #2ec4b6; }
+    .summary-item.balance .value { color: #4361ee; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #aaa;
+      font-size: 15px;
+    }
+
+    @media (max-width: 600px) {
+      .row { flex-direction: column; gap: 0; }
+      .summary { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Accounting Tracker</h1>
+
+    <!-- Summary -->
+    <div class="summary">
+      <div class="summary-item given">
+        <div class="label">Total Given</div>
+        <div class="value" id="totalGiven">0</div>
+      </div>
+      <div class="summary-item received">
+        <div class="label">Total Received</div>
+        <div class="value" id="totalReceived">0</div>
+      </div>
+      <div class="summary-item balance">
+        <div class="label">Balance</div>
+        <div class="value" id="totalBalance">0</div>
+      </div>
+    </div>
+
+    <!-- Add Person -->
+    <div class="card">
+      <h2>Add New Person</h2>
+      <div class="add-person-row">
+        <input type="text" id="newPersonName" placeholder="Enter person name...">
+        <button class="btn-success" onclick="addPerson()">Add Person</button>
+      </div>
+    </div>
+
+    <!-- Add Transaction -->
+    <div class="card">
+      <h2>Add Transaction</h2>
+      <div>
+        <label>Select Person</label>
+        <select id="personSelect">
+          <option value="">-- Select a person --</option>
+        </select>
+      </div>
+      <div class="row">
+        <div>
+          <label>Type</label>
+          <select id="txnType">
+            <option value="given">Given (you gave money)</option>
+            <option value="received">Received (they returned)</option>
+          </select>
+        </div>
+        <div>
+          <label>Amount</label>
+          <input type="number" id="txnAmount" placeholder="0" min="0" step="0.01">
+        </div>
+      </div>
+      <div>
+        <label>Note (optional)</label>
+        <input type="text" id="txnNote" placeholder="What was it for?">
+      </div>
+      <button class="btn-primary" onclick="addTransaction()" style="margin-top:4px;">Add Transaction</button>
+    </div>
+
+    <!-- Person Summary -->
+    <div class="card">
+      <h2>Person Summary</h2>
+      <select id="filterPerson" onchange="renderTransactions()" style="margin-bottom: 12px;">
+        <option value="all">All People</option>
+      </select>
+      <div id="personSummaryBox"></div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+      <h2>Transaction History</h2>
+      <div id="transactionsTable"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Data ---
+    let people = JSON.parse(localStorage.getItem('acct_people') || '[]');
+    let transactions = JSON.parse(localStorage.getItem('acct_txns') || '[]');
+
+    function save() {
+      localStorage.setItem('acct_people', JSON.stringify(people));
+      localStorage.setItem('acct_txns', JSON.stringify(transactions));
+    }
+
+    // --- Add Person ---
+    function addPerson() {
+      const input = document.getElementById('newPersonName');
+      const name = input.value.trim();
+      if (!name) return alert('Please enter a name.');
+      if (people.includes(name)) return alert('Person already exists.');
+      people.push(name);
+      save();
+      input.value = '';
+      refreshDropdowns();
+      renderAll();
+    }
+
+    // --- Add Transaction ---
+    function addTransaction() {
+      const person = document.getElementById('personSelect').value;
+      const type = document.getElementById('txnType').value;
+      const amount = parseFloat(document.getElementById('txnAmount').value);
+      const note = document.getElementById('txnNote').value.trim();
+
+      if (!person) return alert('Please select a person.');
+      if (!amount || amount <= 0) return alert('Please enter a valid amount.');
+
+      transactions.push({
+        id: Date.now(),
+        person,
+        type,
+        amount,
+        note,
+        date: new Date().toISOString()
+      });
+      save();
+
+      document.getElementById('txnAmount').value = '';
+      document.getElementById('txnNote').value = '';
+      renderAll();
+    }
+
+    // --- Delete Transaction ---
+    function deleteTxn(id) {
+      if (!confirm('Delete this transaction?')) return;
+      transactions = transactions.filter(t => t.id !== id);
+      save();
+      renderAll();
+    }
+
+    // --- Dropdowns ---
+    function refreshDropdowns() {
+      const opts = people.map(p => `<option value="${p}">${p}</option>`).join('');
+
+      document.getElementById('personSelect').innerHTML =
+        '<option value="">-- Select a person --</option>' + opts;
+
+      document.getElementById('filterPerson').innerHTML =
+        '<option value="all">All People</option>' + opts;
+    }
+
+    // --- Compute balances per person ---
+    function getPersonStats(name) {
+      const txns = transactions.filter(t => t.person === name);
+      let given = 0, received = 0;
+      txns.forEach(t => {
+        if (t.type === 'given') given += t.amount;
+        else received += t.amount;
+      });
+      return { given, received, balance: given - received };
+    }
+
+    // --- Render ---
+    function renderSummary() {
+      let totalGiven = 0, totalReceived = 0;
+      transactions.forEach(t => {
+        if (t.type === 'given') totalGiven += t.amount;
+        else totalReceived += t.amount;
+      });
+      document.getElementById('totalGiven').textContent = totalGiven.toFixed(2);
+      document.getElementById('totalReceived').textContent = totalReceived.toFixed(2);
+      const bal = totalGiven - totalReceived;
+      document.getElementById('totalBalance').textContent = bal.toFixed(2);
+    }
+
+    function renderPersonSummary() {
+      const filter = document.getElementById('filterPerson').value;
+      const box = document.getElementById('personSummaryBox');
+
+      const list = filter === 'all' ? people : [filter];
+      if (list.length === 0) {
+        box.innerHTML = '<div class="empty-state">No people added yet.</div>';
+        return;
+      }
+
+      let html = '<table><thead><tr><th>Person</th><th>Given</th><th>Received</th><th>Balance (Owed)</th></tr></thead><tbody>';
+      list.forEach(name => {
+        const s = getPersonStats(name);
+        const balClass = s.balance > 0 ? 'balance-negative' : 'balance-positive';
+        html += `<tr>
+          <td><strong>${name}</strong></td>
+          <td class="amount-given">${s.given.toFixed(2)}</td>
+          <td class="amount-received">${s.received.toFixed(2)}</td>
+          <td class="${balClass}">${s.balance.toFixed(2)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      box.innerHTML = html;
+    }
+
+    function renderTransactions() {
+      const filter = document.getElementById('filterPerson').value;
+      const container = document.getElementById('transactionsTable');
+
+      let filtered = filter === 'all'
+        ? [...transactions]
+        : transactions.filter(t => t.person === filter);
+
+      filtered.sort((a, b) => b.id - a.id);
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">No transactions yet.</div>';
+        renderPersonSummary();
+        return;
+      }
+
+      let html = '<table><thead><tr><th>Date</th><th>Person</th><th>Type</th><th>Amount</th><th>Note</th><th></th></tr></thead><tbody>';
+      filtered.forEach(t => {
+        const d = new Date(t.date);
+        const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const typeClass = t.type === 'given' ? 'amount-given' : 'amount-received';
+        const typeLabel = t.type === 'given' ? 'Given' : 'Received';
+        html += `<tr>
+          <td>${dateStr}</td>
+          <td><strong>${t.person}</strong></td>
+          <td>${typeLabel}</td>
+          <td class="${typeClass}">${t.amount.toFixed(2)}</td>
+          <td>${t.note || '-'}</td>
+          <td><button class="btn-danger" onclick="deleteTxn(${t.id})">Delete</button></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+      renderPersonSummary();
+    }
+
+    function renderAll() {
+      renderSummary();
+      renderTransactions();
+    }
+
+    // --- Init ---
+    refreshDropdowns();
+    renderAll();
+
+    // Allow Enter key to add person
+    document.getElementById('newPersonName').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addPerson();
+    });
+    document.getElementById('txnAmount').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addTransaction();
+    });
+  </script>
+</body>
+</html>

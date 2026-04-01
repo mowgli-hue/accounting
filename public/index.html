@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Accounting Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -22,6 +23,25 @@
       margin: 20px 0 30px;
       color: #1a1a2e;
       font-size: 28px;
+    }
+
+    /* Setup banner */
+    .setup-banner {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .setup-banner h3 { color: #856404; margin-bottom: 10px; }
+    .setup-banner code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
     }
 
     /* Card style */
@@ -164,6 +184,13 @@
       font-size: 15px;
     }
 
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-size: 16px;
+    }
+
     @media (max-width: 600px) {
       .row { flex-direction: column; gap: 0; }
       .summary { flex-direction: column; }
@@ -173,6 +200,12 @@
 <body>
   <div class="container">
     <h1>Accounting Tracker</h1>
+
+    <!-- Setup banner - shown only if not configured -->
+    <div class="setup-banner" id="setupBanner" style="display:none;">
+      <h3>Setup Required</h3>
+      <p>Open this HTML file and set your Supabase <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> at the top of the script section.</p>
+    </div>
 
     <!-- Summary -->
     <div class="summary">
@@ -245,38 +278,49 @@
   </div>
 
   <script>
-    // --- Data ---
+    // ============================================================
+    // CONFIGURATION - Put your Supabase credentials here
+    // ============================================================
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';       // e.g. https://abcdef.supabase.co
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // e.g. eyJhbGciOiJI...
+    // ============================================================
+
+    let db = null;
     let people = [];
     let transactions = [];
 
-    // --- API helpers ---
-    async function api(url, body) {
-      try {
-        const opts = {
-          method: body ? 'POST' : 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        };
-        if (body) opts.body = JSON.stringify(body);
-        const res = await fetch(url, opts);
-        const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Something went wrong'); return null; }
-        return data;
-      } catch (err) {
-        alert('Network error: ' + err.message);
-        return null;
+    // --- Init Supabase ---
+    function initSupabase() {
+      if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+        document.getElementById('setupBanner').style.display = 'block';
+        return false;
       }
+      db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return true;
     }
 
-    function applyData(data) {
-      if (!data) return;
-      people = data.people;
-      transactions = data.transactions;
+    // --- Load data from Supabase ---
+    async function loadData() {
+      const { data: ppl, error: e1 } = await db.from('people').select('name').order('id');
+      const { data: txns, error: e2 } = await db.from('transactions').select('*').order('created_at', { ascending: false });
+
+      if (e1 || e2) {
+        alert('Error loading data: ' + (e1?.message || e2?.message));
+        return;
+      }
+
+      people = ppl.map(p => p.name);
+      transactions = txns.map(t => ({
+        id: t.id,
+        person: t.person,
+        type: t.type,
+        amount: parseFloat(t.amount),
+        note: t.note || '',
+        date: t.created_at
+      }));
+
       refreshDropdowns();
       renderAll();
-    }
-
-    async function loadFromServer() {
-      applyData(await api('/api/data'));
     }
 
     // --- Add Person ---
@@ -284,11 +328,13 @@
       const input = document.getElementById('newPersonName');
       const name = input.value.trim();
       if (!name) return alert('Please enter a name.');
-      const data = await api('/api/people', { name });
-      if (data) {
-        applyData(data);
-        input.value = '';
-      }
+      if (people.includes(name)) return alert('Person already exists.');
+
+      const { error } = await db.from('people').insert({ name });
+      if (error) return alert('Error: ' + error.message);
+
+      input.value = '';
+      await loadData();
     }
 
     // --- Add Transaction ---
@@ -301,27 +347,27 @@
       if (!person) return alert('Please select a person.');
       if (!amount || amount <= 0) return alert('Please enter a valid amount.');
 
-      const data = await api('/api/transactions', { person, type, amount, note });
-      if (data) {
-        applyData(data);
-        document.getElementById('txnAmount').value = '';
-        document.getElementById('txnNote').value = '';
-      }
+      const { error } = await db.from('transactions').insert({ person, type, amount, note });
+      if (error) return alert('Error: ' + error.message);
+
+      document.getElementById('txnAmount').value = '';
+      document.getElementById('txnNote').value = '';
+      await loadData();
     }
 
     // --- Delete Transaction ---
     async function deleteTxn(id) {
       if (!confirm('Delete this transaction?')) return;
-      applyData(await api('/api/transactions', { action: 'delete', id }));
+      const { error } = await db.from('transactions').delete().eq('id', id);
+      if (error) return alert('Error: ' + error.message);
+      await loadData();
     }
 
     // --- Dropdowns ---
     function refreshDropdowns() {
       const opts = people.map(p => `<option value="${p}">${p}</option>`).join('');
-
       document.getElementById('personSelect').innerHTML =
         '<option value="">-- Select a person --</option>' + opts;
-
       document.getElementById('filterPerson').innerHTML =
         '<option value="all">All People</option>' + opts;
     }
@@ -346,15 +392,14 @@
       });
       document.getElementById('totalGiven').textContent = totalGiven.toFixed(2);
       document.getElementById('totalReceived').textContent = totalReceived.toFixed(2);
-      const bal = totalGiven - totalReceived;
-      document.getElementById('totalBalance').textContent = bal.toFixed(2);
+      document.getElementById('totalBalance').textContent = (totalGiven - totalReceived).toFixed(2);
     }
 
     function renderPersonSummary() {
       const filter = document.getElementById('filterPerson').value;
       const box = document.getElementById('personSummaryBox');
-
       const list = filter === 'all' ? people : [filter];
+
       if (list.length === 0) {
         box.innerHTML = '<div class="empty-state">No people added yet.</div>';
         return;
@@ -382,8 +427,6 @@
       let filtered = filter === 'all'
         ? [...transactions]
         : transactions.filter(t => t.person === filter);
-
-      filtered.sort((a, b) => b.id - a.id);
 
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state">No transactions yet.</div>';
@@ -417,9 +460,10 @@
     }
 
     // --- Init ---
-    loadFromServer();
+    if (initSupabase()) {
+      loadData();
+    }
 
-    // Allow Enter key to add person
     document.getElementById('newPersonName').addEventListener('keydown', e => {
       if (e.key === 'Enter') addPerson();
     });

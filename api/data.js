@@ -1,15 +1,22 @@
-const { kv } = require('@vercel/kv');
-
-async function getData() {
-  const people = (await kv.get('people')) || [];
-  const transactions = (await kv.get('transactions')) || [];
-  return { people, transactions };
-}
+const { sql } = require('@vercel/postgres');
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    const peopleResult = await sql`SELECT name FROM people ORDER BY id`;
+    const txnResult = await sql`SELECT * FROM transactions ORDER BY date DESC`;
+
+    const people = peopleResult.rows.map(r => r.name);
+    const transactions = txnResult.rows.map(r => ({
+      id: r.id,
+      person: r.person,
+      type: r.type,
+      amount: parseFloat(r.amount),
+      note: r.note,
+      date: r.date
+    }));
+
+    return res.status(200).json({ people, transactions });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
-  const data = await getData();
-  return res.status(200).json(data);
 };

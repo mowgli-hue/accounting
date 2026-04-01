@@ -250,23 +250,33 @@
     let transactions = [];
 
     // --- API helpers ---
-    async function api(method, url, body) {
-      const opts = { method, headers: { 'Content-Type': 'application/json' } };
-      if (body) opts.body = JSON.stringify(body);
-      const res = await fetch(url, opts);
-      const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Something went wrong'); return null; }
-      return data;
+    async function api(url, body) {
+      try {
+        const opts = {
+          method: body ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(url, opts);
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Something went wrong'); return null; }
+        return data;
+      } catch (err) {
+        alert('Network error: ' + err.message);
+        return null;
+      }
+    }
+
+    function applyData(data) {
+      if (!data) return;
+      people = data.people;
+      transactions = data.transactions;
+      refreshDropdowns();
+      renderAll();
     }
 
     async function loadFromServer() {
-      const data = await api('GET', '/api/data');
-      if (data) {
-        people = data.people;
-        transactions = data.transactions;
-        refreshDropdowns();
-        renderAll();
-      }
+      applyData(await api('/api/data'));
     }
 
     // --- Add Person ---
@@ -274,13 +284,10 @@
       const input = document.getElementById('newPersonName');
       const name = input.value.trim();
       if (!name) return alert('Please enter a name.');
-      const data = await api('POST', '/api/people', { name });
+      const data = await api('/api/people', { name });
       if (data) {
-        people = data.people;
-        transactions = data.transactions;
+        applyData(data);
         input.value = '';
-        refreshDropdowns();
-        renderAll();
       }
     }
 
@@ -294,25 +301,18 @@
       if (!person) return alert('Please select a person.');
       if (!amount || amount <= 0) return alert('Please enter a valid amount.');
 
-      const data = await api('POST', '/api/transactions', { person, type, amount, note });
+      const data = await api('/api/transactions', { person, type, amount, note });
       if (data) {
-        people = data.people;
-        transactions = data.transactions;
+        applyData(data);
         document.getElementById('txnAmount').value = '';
         document.getElementById('txnNote').value = '';
-        renderAll();
       }
     }
 
     // --- Delete Transaction ---
     async function deleteTxn(id) {
       if (!confirm('Delete this transaction?')) return;
-      const data = await api('DELETE', '/api/transactions', { id });
-      if (data) {
-        people = data.people;
-        transactions = data.transactions;
-        renderAll();
-      }
+      applyData(await api('/api/transactions', { action: 'delete', id }));
     }
 
     // --- Dropdowns ---

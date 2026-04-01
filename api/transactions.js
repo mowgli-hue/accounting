@@ -1,4 +1,4 @@
-const { sql } = require('@vercel/postgres');
+const { loadData, saveData } = require('./_db');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,30 +6,27 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    const data = await loadData();
     const { action, id, person, type, amount, note } = req.body;
 
     if (action === 'delete') {
-      await sql`DELETE FROM transactions WHERE id = ${id}`;
+      data.transactions = data.transactions.filter(t => t.id !== id);
     } else {
       if (!person || !type || !amount || amount <= 0) {
         return res.status(400).json({ error: 'Invalid transaction data' });
       }
-      await sql`
-        INSERT INTO transactions (person, type, amount, note)
-        VALUES (${person}, ${type}, ${parseFloat(amount)}, ${note || ''})
-      `;
+      data.transactions.push({
+        id: Date.now(),
+        person,
+        type,
+        amount: parseFloat(amount),
+        note: note || '',
+        date: new Date().toISOString()
+      });
     }
 
-    // Return updated data
-    const peopleResult = await sql`SELECT name FROM people ORDER BY id`;
-    const txnResult = await sql`SELECT * FROM transactions ORDER BY date DESC`;
-    const people = peopleResult.rows.map(r => r.name);
-    const transactions = txnResult.rows.map(r => ({
-      id: r.id, person: r.person, type: r.type,
-      amount: parseFloat(r.amount), note: r.note, date: r.date
-    }));
-
-    return res.status(200).json({ people, transactions });
+    await saveData(data);
+    return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

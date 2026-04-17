@@ -151,7 +151,7 @@
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
-    select, input[type="text"], input[type="number"] {
+    select, input[type="text"], input[type="number"], input[type="date"] {
       width: 100%;
       padding: 11px 14px;
       border: 1.5px solid var(--border);
@@ -406,9 +406,15 @@
           <input type="number" id="txnAmount" placeholder="0.00" min="0" step="0.01">
         </div>
       </div>
-      <div>
-        <label>Note (optional)</label>
-        <input type="text" id="txnNote" placeholder="What was it for?">
+      <div class="row">
+        <div>
+          <label>Date</label>
+          <input type="date" id="txnDate">
+        </div>
+        <div>
+          <label>Note (optional)</label>
+          <input type="text" id="txnNote" placeholder="What was it for?">
+        </div>
       </div>
       <button class="btn-primary" onclick="addTransaction()" style="margin-top:6px; width:100%;">Add Transaction</button>
     </div>
@@ -469,6 +475,11 @@
       return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
     }
 
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
     function fmtAmount(n) {
       return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -504,18 +515,20 @@
       const type = document.getElementById('txnType').value;
       const amount = parseFloat(document.getElementById('txnAmount').value);
       const note = document.getElementById('txnNote').value.trim();
+      const dateVal = document.getElementById('txnDate').value;
 
       if (!person) return toast('Please select a person.');
       if (!amount || amount <= 0) return toast('Enter a valid amount.');
 
+      const date = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
       transactions.push({
         id: Date.now(),
-        person, type, amount, note,
-        date: new Date().toISOString()
+        person, type, amount, note, date
       });
       save();
       document.getElementById('txnAmount').value = '';
       document.getElementById('txnNote').value = '';
+      document.getElementById('txnDate').value = todayStr();
       renderAll();
       toast((type === 'given' ? 'Gave' : 'Received') + ' ' + fmtAmount(amount) + ' - ' + person);
     }
@@ -662,6 +675,7 @@
 
     document.getElementById('headerDate').textContent =
       new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('txnDate').value = todayStr();
 
     refreshDropdowns();
     renderAll();

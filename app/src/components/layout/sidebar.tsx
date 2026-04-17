@@ -10,6 +10,7 @@ import {
   Users,
   Sparkles,
   FileText,
+  Globe,
   LogOut,
   Menu,
   X,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/borrowing", label: "Borrow / Lend", icon: Handshake },
   { href: "/agreements", label: "Agreements", icon: FileText },
+  { href: "/marketplace", label: "Marketplace", icon: Globe },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/insights", label: "AI Insights", icon: Sparkles },
 ];

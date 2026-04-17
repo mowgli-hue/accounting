@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Accounting Tracker</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -13,11 +12,7 @@
       color: #333;
       min-height: 100vh;
     }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-    }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
     h1 {
       text-align: center;
       margin: 20px 0 30px;
@@ -25,26 +20,6 @@
       font-size: 28px;
     }
 
-    /* Setup banner */
-    .setup-banner {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      text-align: center;
-      font-size: 15px;
-      line-height: 1.6;
-    }
-    .setup-banner h3 { color: #856404; margin-bottom: 10px; }
-    .setup-banner code {
-      background: #fff;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    /* Card style */
     .card {
       background: #fff;
       border-radius: 12px;
@@ -52,13 +27,8 @@
       margin-bottom: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .card h2 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      color: #1a1a2e;
-    }
+    .card h2 { font-size: 18px; margin-bottom: 16px; color: #1a1a2e; }
 
-    /* Form elements */
     label {
       display: block;
       font-weight: 600;
@@ -75,15 +45,9 @@
       margin-bottom: 14px;
       transition: border-color 0.2s;
     }
-    select:focus, input:focus {
-      outline: none;
-      border-color: #4361ee;
-    }
+    select:focus, input:focus { outline: none; border-color: #4361ee; }
 
-    .row {
-      display: flex;
-      gap: 12px;
-    }
+    .row { display: flex; gap: 12px; }
     .row > div { flex: 1; }
 
     button {
@@ -95,16 +59,12 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    .btn-primary {
-      background: #4361ee;
-      color: #fff;
-    }
+    .btn-primary { background: #4361ee; color: #fff; }
     .btn-primary:hover { background: #3a56d4; }
-    .btn-success {
-      background: #2ec4b6;
-      color: #fff;
-    }
+    .btn-success { background: #2ec4b6; color: #fff; }
     .btn-success:hover { background: #28b0a3; }
+    .btn-secondary { background: #6c757d; color: #fff; font-size: 13px; padding: 8px 14px; }
+    .btn-secondary:hover { background: #5a6268; }
     .btn-danger {
       background: #e63946;
       color: #fff;
@@ -113,21 +73,11 @@
     }
     .btn-danger:hover { background: #cc2f3b; }
 
-    /* Add person row */
-    .add-person-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-    }
+    .add-person-row { display: flex; gap: 10px; align-items: flex-end; }
     .add-person-row input { flex: 1; margin-bottom: 0; }
     .add-person-row button { margin-bottom: 0; white-space: nowrap; }
 
-    /* Table */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th {
       text-align: left;
       padding: 10px 12px;
@@ -150,12 +100,7 @@
     .balance-positive { color: #2ec4b6; font-weight: 700; }
     .balance-negative { color: #e63946; font-weight: 700; }
 
-    /* Summary card */
-    .summary {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
+    .summary { display: flex; gap: 16px; margin-bottom: 20px; }
     .summary-item {
       flex: 1;
       background: #fff;
@@ -164,31 +109,20 @@
       text-align: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .summary-item .label {
-      font-size: 13px;
-      color: #888;
-      margin-bottom: 6px;
-    }
-    .summary-item .value {
-      font-size: 22px;
-      font-weight: 700;
-    }
+    .summary-item .label { font-size: 13px; color: #888; margin-bottom: 6px; }
+    .summary-item .value { font-size: 22px; font-weight: 700; }
     .summary-item.given .value { color: #e63946; }
     .summary-item.received .value { color: #2ec4b6; }
     .summary-item.balance .value { color: #4361ee; }
 
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: #aaa;
-      font-size: 15px;
-    }
+    .empty-state { text-align: center; padding: 40px; color: #aaa; font-size: 15px; }
 
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #888;
-      font-size: 16px;
+    .backup-bar {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
     }
 
     @media (max-width: 600px) {
@@ -201,13 +135,12 @@
   <div class="container">
     <h1>Accounting Tracker</h1>
 
-    <!-- Setup banner - shown only if not configured -->
-    <div class="setup-banner" id="setupBanner" style="display:none;">
-      <h3>Setup Required</h3>
-      <p>Open this HTML file and set your Supabase <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> at the top of the script section.</p>
+    <div class="backup-bar">
+      <button class="btn-secondary" onclick="exportData()">Download Backup</button>
+      <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Upload Backup</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
     </div>
 
-    <!-- Summary -->
     <div class="summary">
       <div class="summary-item given">
         <div class="label">Total Given</div>
@@ -223,7 +156,6 @@
       </div>
     </div>
 
-    <!-- Add Person -->
     <div class="card">
       <h2>Add New Person</h2>
       <div class="add-person-row">
@@ -232,7 +164,6 @@
       </div>
     </div>
 
-    <!-- Add Transaction -->
     <div class="card">
       <h2>Add Transaction</h2>
       <div>
@@ -261,7 +192,6 @@
       <button class="btn-primary" onclick="addTransaction()" style="margin-top:4px;">Add Transaction</button>
     </div>
 
-    <!-- Person Summary -->
     <div class="card">
       <h2>Person Summary</h2>
       <select id="filterPerson" onchange="renderTransactions()" style="margin-bottom: 12px;">
@@ -270,7 +200,6 @@
       <div id="personSummaryBox"></div>
     </div>
 
-    <!-- Transactions Table -->
     <div class="card">
       <h2>Transaction History</h2>
       <div id="transactionsTable"></div>
@@ -278,67 +207,27 @@
   </div>
 
   <script>
-    // ============================================================
-    // CONFIGURATION - Put your Supabase credentials here
-    // ============================================================
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';       // e.g. https://abcdef.supabase.co
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // e.g. eyJhbGciOiJI...
-    // ============================================================
+    let people = JSON.parse(localStorage.getItem('acct_people') || '[]');
+    let transactions = JSON.parse(localStorage.getItem('acct_txns') || '[]');
 
-    let db = null;
-    let people = [];
-    let transactions = [];
-
-    // --- Init Supabase ---
-    function initSupabase() {
-      if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
-        document.getElementById('setupBanner').style.display = 'block';
-        return false;
-      }
-      db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      return true;
+    function save() {
+      localStorage.setItem('acct_people', JSON.stringify(people));
+      localStorage.setItem('acct_txns', JSON.stringify(transactions));
     }
 
-    // --- Load data from Supabase ---
-    async function loadData() {
-      const { data: ppl, error: e1 } = await db.from('people').select('name').order('id');
-      const { data: txns, error: e2 } = await db.from('transactions').select('*').order('created_at', { ascending: false });
-
-      if (e1 || e2) {
-        alert('Error loading data: ' + (e1?.message || e2?.message));
-        return;
-      }
-
-      people = ppl.map(p => p.name);
-      transactions = txns.map(t => ({
-        id: t.id,
-        person: t.person,
-        type: t.type,
-        amount: parseFloat(t.amount),
-        note: t.note || '',
-        date: t.created_at
-      }));
-
-      refreshDropdowns();
-      renderAll();
-    }
-
-    // --- Add Person ---
-    async function addPerson() {
+    function addPerson() {
       const input = document.getElementById('newPersonName');
       const name = input.value.trim();
       if (!name) return alert('Please enter a name.');
       if (people.includes(name)) return alert('Person already exists.');
-
-      const { error } = await db.from('people').insert({ name });
-      if (error) return alert('Error: ' + error.message);
-
+      people.push(name);
+      save();
       input.value = '';
-      await loadData();
+      refreshDropdowns();
+      renderAll();
     }
 
-    // --- Add Transaction ---
-    async function addTransaction() {
+    function addTransaction() {
       const person = document.getElementById('personSelect').value;
       const type = document.getElementById('txnType').value;
       const amount = parseFloat(document.getElementById('txnAmount').value);
@@ -347,23 +236,60 @@
       if (!person) return alert('Please select a person.');
       if (!amount || amount <= 0) return alert('Please enter a valid amount.');
 
-      const { error } = await db.from('transactions').insert({ person, type, amount, note });
-      if (error) return alert('Error: ' + error.message);
-
+      transactions.push({
+        id: Date.now(),
+        person, type, amount, note,
+        date: new Date().toISOString()
+      });
+      save();
       document.getElementById('txnAmount').value = '';
       document.getElementById('txnNote').value = '';
-      await loadData();
+      renderAll();
     }
 
-    // --- Delete Transaction ---
-    async function deleteTxn(id) {
+    function deleteTxn(id) {
       if (!confirm('Delete this transaction?')) return;
-      const { error } = await db.from('transactions').delete().eq('id', id);
-      if (error) return alert('Error: ' + error.message);
-      await loadData();
+      transactions = transactions.filter(t => t.id !== id);
+      save();
+      renderAll();
     }
 
-    // --- Dropdowns ---
+    function exportData() {
+      const data = { people, transactions, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `accounting-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data.people) || !Array.isArray(data.transactions)) {
+            return alert('Invalid backup file.');
+          }
+          if (!confirm(`Replace current data with backup (${data.people.length} people, ${data.transactions.length} transactions)?`)) return;
+          people = data.people;
+          transactions = data.transactions;
+          save();
+          refreshDropdowns();
+          renderAll();
+          alert('Backup restored successfully!');
+        } catch (err) {
+          alert('Error reading backup file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
     function refreshDropdowns() {
       const opts = people.map(p => `<option value="${p}">${p}</option>`).join('');
       document.getElementById('personSelect').innerHTML =
@@ -372,7 +298,6 @@
         '<option value="all">All People</option>' + opts;
     }
 
-    // --- Compute balances per person ---
     function getPersonStats(name) {
       const txns = transactions.filter(t => t.person === name);
       let given = 0, received = 0;
@@ -383,7 +308,6 @@
       return { given, received, balance: given - received };
     }
 
-    // --- Render ---
     function renderSummary() {
       let totalGiven = 0, totalReceived = 0;
       transactions.forEach(t => {
@@ -423,10 +347,8 @@
     function renderTransactions() {
       const filter = document.getElementById('filterPerson').value;
       const container = document.getElementById('transactionsTable');
-
-      let filtered = filter === 'all'
-        ? [...transactions]
-        : transactions.filter(t => t.person === filter);
+      let filtered = filter === 'all' ? [...transactions] : transactions.filter(t => t.person === filter);
+      filtered.sort((a, b) => b.id - a.id);
 
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state">No transactions yet.</div>';
@@ -459,10 +381,8 @@
       renderTransactions();
     }
 
-    // --- Init ---
-    if (initSupabase()) {
-      loadData();
-    }
+    refreshDropdowns();
+    renderAll();
 
     document.getElementById('newPersonName').addEventListener('keydown', e => {
       if (e.key === 'Enter') addPerson();

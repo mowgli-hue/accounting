@@ -1,0 +1,79 @@
+import { Timestamp } from "firebase/firestore";
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  currency: string;
+  createdAt: Timestamp;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: "income" | "expense";
+  amount: number;
+  category: string;
+  description: string;
+  date: Timestamp;
+  contactId?: string;
+  loanId?: string;
+  createdAt: Timestamp;
+}
+
+export interface Budget {
+  id: string;
+  userId: string;
+  category: string;
+  monthlyLimit: number;
+  month: string;
+  createdAt: Timestamp;
+}
+
+export interface Contact {
+  id: string;
+  userId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  linkedUserId?: string;
+  createdAt: Timestamp;
+}
+
+export interface Loan {
+  id: string;
+  userId: string;
+  contactId: string;
+  contactName: string;
+  direction: "lent" | "borrowed";
+  principalAmount: number;
+  outstandingBalance: number;
+  currency: string;
+  description: string;
+  dateIssued: Timestamp;
+  dueDate?: Timestamp;
+  status: "active" | "paid" | "overdue";
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface LoanPayment {
+  id: string;
+  loanId: string;
+  userId: string;
+  amount: number;
+  date: Timestamp;
+  note?: string;
+  createdAt: Timestamp;
+}
+
+export interface AIInsight {
+  id: string;
+  userId: string;
+  type: "spending_pattern" | "budget_suggestion" | "anomaly" | "savings_tip";
+  title: string;
+  body: string;
+  generatedAt: Timestamp;
+  expiresAt: Timestamp;
+}

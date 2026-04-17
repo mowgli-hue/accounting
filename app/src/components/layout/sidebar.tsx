@@ -9,6 +9,7 @@ import {
   Handshake,
   Users,
   Sparkles,
+  FileText,
   LogOut,
   Menu,
   X,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/borrowing", label: "Borrow / Lend", icon: Handshake },
+  { href: "/agreements", label: "Agreements", icon: FileText },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/insights", label: "AI Insights", icon: Sparkles },
 ];

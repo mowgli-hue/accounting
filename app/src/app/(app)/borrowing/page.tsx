@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
-import { subscribeLoans, subscribeContacts, addLoan, addLoanPayment } from "@/lib/firebase/firestore";
+import { subscribeLoans, subscribeContacts, addLoanPayment, createLoanWithAgreement } from "@/lib/firebase/firestore";
 import { formatCurrency, formatDate, daysUntil } from "@/lib/utils";
-import { Plus, X, AlertTriangle, CheckCircle, Clock, CreditCard } from "lucide-react";
+import { Plus, X, AlertTriangle, CheckCircle, Clock, CreditCard, FileText, Copy, Send } from "lucide-react";
 import type { Loan, Contact } from "@/types";
 
 export default function BorrowingPage() {
@@ -25,7 +25,9 @@ export default function BorrowingPage() {
   const [description, setDescription] = useState("");
   const [dateIssued, setDateIssued] = useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = useState("");
+  const [createAgreement, setCreateAgreement] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [newAgreementLink, setNewAgreementLink] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -41,7 +43,7 @@ export default function BorrowingPage() {
     if (!contact) return;
     setSaving(true);
     try {
-      await addLoan({
+      const loanData = {
         userId: user.uid,
         contactId,
         contactName: contact.name,
@@ -52,10 +54,33 @@ export default function BorrowingPage() {
         description: description || `${direction === "lent" ? "Lent to" : "Borrowed from"} ${contact.name}`,
         dateIssued: Timestamp.fromDate(new Date(dateIssued + "T12:00:00")),
         dueDate: dueDate ? Timestamp.fromDate(new Date(dueDate + "T23:59:59")) : undefined as unknown as Timestamp,
-        status: "active",
+        status: "active" as const,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-      });
+      };
+
+      if (createAgreement && direction === "lent") {
+        const terms = `1. ${contact.name} ("Borrower") acknowledges receiving $${parseFloat(amount).toFixed(2)} from ${user.displayName || "the Lender"} ("Lender").\n2. Borrower agrees to repay the full amount${dueDate ? ` by ${new Date(dueDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""}.\n3. Both parties agree this is a binding commitment.\n4. Partial payments are accepted and will be tracked.\n5. This agreement is digitally recorded and timestamped.`;
+
+        const result = await createLoanWithAgreement(
+          loanData,
+          terms,
+          contact.email,
+          contact.phone,
+        );
+
+        // Update the agreement with lender name
+        const { updateAgreement } = await import("@/lib/firebase/firestore");
+        await updateAgreement(result.agreementId, {
+          lenderName: user.displayName || user.email || "Lender",
+        });
+
+        setNewAgreementLink(`${window.location.origin}/agree/${result.agreementId}`);
+      } else {
+        const { addLoan } = await import("@/lib/firebase/firestore");
+        await addLoan(loanData);
+      }
+
       setAmount(""); setDescription(""); setContactId(""); setDueDate("");
       setShowForm(false);
     } finally {
@@ -196,12 +221,55 @@ export default function BorrowingPage() {
                 <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What was it for?"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
+              {direction === "lent" && (
+                <label className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg cursor-pointer border border-indigo-200">
+                  <input type="checkbox" checked={createAgreement} onChange={(e) => setCreateAgreement(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded" />
+                  <div>
+                    <span className="text-sm font-semibold text-indigo-700 flex items-center gap-1">
+                      <FileText size={14} /> Create Digital Agreement
+                    </span>
+                    <span className="text-xs text-indigo-500 block">Borrower must sign and agree to pay back. Sends a link they can sign.</span>
+                  </div>
+                </label>
+              )}
               <button type="submit" disabled={saving}
                 className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
-                {saving ? "Creating..." : "Create Loan"}
+                {saving ? "Creating..." : direction === "lent" && createAgreement ? "Create Loan & Agreement" : "Create Loan"}
               </button>
             </form>
           )}
+        </div>
+      )}
+
+      {/* Agreement Created Modal */}
+      {newAgreementLink && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="text-center mb-4">
+              <CheckCircle className="mx-auto text-green-500 mb-3" size={48} />
+              <h2 className="font-bold text-lg text-gray-900">Loan & Agreement Created!</h2>
+              <p className="text-sm text-gray-500 mt-1">Share this link with the borrower so they can sign the agreement.</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+              <p className="text-xs text-gray-400 mb-1 font-semibold">AGREEMENT LINK</p>
+              <p className="text-sm text-indigo-600 break-all font-mono">{newAgreementLink}</p>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => { navigator.clipboard.writeText(newAgreementLink); }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold text-gray-700 transition">
+                <Copy size={14} /> Copy Link
+              </button>
+              <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent("Please review and sign this loan agreement: " + newAgreementLink)}`, "_blank"); }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-100 hover:bg-green-200 rounded-lg text-sm font-semibold text-green-700 transition">
+                <Send size={14} /> WhatsApp
+              </button>
+            </div>
+            <button onClick={() => setNewAgreementLink(null)}
+              className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition">
+              Done
+            </button>
+          </div>
         </div>
       )}
 
@@ -274,6 +342,17 @@ export default function BorrowingPage() {
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${info.bg} ${info.color}`}>
                         <info.icon size={12} /> {info.label}
                       </span>
+                      {loan.agreementId && (
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          loan.agreementStatus === "signed" ? "bg-green-50 text-green-600" :
+                          loan.agreementStatus === "declined" ? "bg-red-50 text-red-600" :
+                          "bg-amber-50 text-amber-600"
+                        }`}>
+                          <FileText size={10} />
+                          {loan.agreementStatus === "signed" ? "Signed" :
+                           loan.agreementStatus === "declined" ? "Declined" : "Awaiting Signature"}
+                        </span>
+                      )}
                     </div>
                     <p className="font-semibold text-gray-900">{loan.contactName}</p>
                     <p className="text-sm text-gray-500">{loan.description}</p>

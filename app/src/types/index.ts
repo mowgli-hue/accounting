@@ -54,8 +54,38 @@ export interface Loan {
   dateIssued: Timestamp;
   dueDate?: Timestamp;
   status: "active" | "paid" | "overdue";
+  agreementId?: string;
+  agreementStatus?: "pending" | "signed" | "declined";
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface Agreement {
+  id: string;
+  loanId: string;
+  lenderUserId: string;
+  lenderName: string;
+  borrowerName: string;
+  borrowerEmail?: string;
+  borrowerPhone?: string;
+  amount: number;
+  currency: string;
+  description: string;
+  terms: string;
+  dateIssued: Timestamp;
+  dueDate?: Timestamp;
+  status: "pending" | "signed" | "declined" | "expired";
+  signedAt?: Timestamp;
+  signedByName?: string;
+  signedByIP?: string;
+  signatureNote?: string;
+  reminders: AgreementReminder[];
+  createdAt: Timestamp;
+}
+
+export interface AgreementReminder {
+  sentAt: Timestamp;
+  type: "initial" | "7day" | "3day" | "1day" | "overdue" | "manual";
 }
 
 export interface LoanPayment {

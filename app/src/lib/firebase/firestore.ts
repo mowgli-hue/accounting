@@ -15,7 +15,10 @@ import {
 import { getAppDb } from "./config";
 
 function db() { return getAppDb(); }
-import type { Transaction, Budget, Contact, Loan, LoanPayment } from "@/types";
+import {
+  getDoc,
+} from "firebase/firestore";
+import type { Transaction, Budget, Contact, Loan, LoanPayment, Agreement } from "@/types";
 
 // ── Transactions ──
 export function subscribeTransactions(
@@ -147,4 +150,69 @@ export function subscribeLoanPayments(
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as LoanPayment));
   });
+}
+
+// ── Agreements ──
+export async function createAgreement(data: Omit<Agreement, "id">) {
+  const ref = await addDoc(collection(db(), "agreements"), data);
+  return ref.id;
+}
+
+export async function getAgreement(id: string): Promise<Agreement | null> {
+  const snap = await getDoc(doc(db(), "agreements", id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Agreement;
+}
+
+export async function updateAgreement(id: string, data: Partial<Agreement>) {
+  return updateDoc(doc(db(), "agreements", id), data);
+}
+
+export function subscribeAgreements(
+  userId: string,
+  callback: (agreements: Agreement[]) => void
+) {
+  const q = query(
+    collection(db(), "agreements"),
+    where("lenderUserId", "==", userId),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Agreement));
+  });
+}
+
+export async function createLoanWithAgreement(
+  loanData: Omit<Loan, "id">,
+  agreementTerms: string,
+  borrowerEmail?: string,
+  borrowerPhone?: string,
+) {
+  const loanRef = await addDoc(collection(db(), "loans"), loanData);
+
+  const agreementData: Omit<Agreement, "id"> = {
+    loanId: loanRef.id,
+    lenderUserId: loanData.userId,
+    lenderName: "",
+    borrowerName: loanData.contactName,
+    borrowerEmail,
+    borrowerPhone,
+    amount: loanData.principalAmount,
+    currency: loanData.currency,
+    description: loanData.description,
+    terms: agreementTerms,
+    dateIssued: loanData.dateIssued,
+    dueDate: loanData.dueDate,
+    status: "pending",
+    reminders: [],
+    createdAt: Timestamp.now(),
+  };
+
+  const agreementId = await createAgreement(agreementData);
+  await updateDoc(doc(db(), "loans", loanRef.id), {
+    agreementId,
+    agreementStatus: "pending",
+  });
+
+  return { loanId: loanRef.id, agreementId };
 }

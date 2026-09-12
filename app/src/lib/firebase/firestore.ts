@@ -10,15 +10,12 @@ import {
   onSnapshot,
   Timestamp,
   writeBatch,
-  getDocs,
-} from "firebase/firestore";
-import { getAppDb } from "./config";
-
-function db() { return getAppDb(); }
-import {
   getDoc,
 } from "firebase/firestore";
+import { getAppDb } from "./config";
 import type { Transaction, Budget, Contact, Loan, LoanPayment, Agreement } from "@/types";
+
+function db() { return getAppDb(); }
 
 // ── Transactions ──
 export function subscribeTransactions(
@@ -195,18 +192,18 @@ export async function createLoanWithAgreement(
     lenderUserId: loanData.userId,
     lenderName: "",
     borrowerName: loanData.contactName,
-    borrowerEmail,
-    borrowerPhone,
     amount: loanData.principalAmount,
     currency: loanData.currency,
     description: loanData.description,
     terms: agreementTerms,
     dateIssued: loanData.dateIssued,
-    dueDate: loanData.dueDate,
     status: "pending",
     reminders: [],
     createdAt: Timestamp.now(),
   };
+  if (borrowerEmail) agreementData.borrowerEmail = borrowerEmail;
+  if (borrowerPhone) agreementData.borrowerPhone = borrowerPhone;
+  if (loanData.dueDate) agreementData.dueDate = loanData.dueDate;
 
   const agreementId = await createAgreement(agreementData);
   await updateDoc(doc(db(), "loans", loanRef.id), {

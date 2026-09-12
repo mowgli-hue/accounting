@@ -39,18 +39,19 @@ export default function ContactsPage() {
     if (!name.trim()) { alert("Please enter a name."); return; }
     setSaving(true);
     try {
-      await addContact({
+      const data: Omit<Contact, "id"> = {
         userId: user.uid,
         name: name.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
         createdAt: Timestamp.now(),
-      });
+      };
+      if (email.trim()) data.email = email.trim();
+      if (phone.trim()) data.phone = phone.trim();
+      await addContact(data);
       setName(""); setEmail(""); setPhone("");
       setShowForm(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      alert("Could not save contact: " + msg + "\n\nIf you see 'permission-denied' or 'Missing or insufficient permissions', you need to update your Firestore Security Rules.");
+      alert("Could not save contact: " + msg);
       console.error("addContact error:", err);
     } finally {
       setSaving(false);

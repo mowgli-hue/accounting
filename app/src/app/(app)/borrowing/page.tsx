@@ -18,7 +18,6 @@ export default function BorrowingPage() {
   const [payNote, setPayNote] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "overdue" | "paid">("all");
 
-  // Form state
   const [contactId, setContactId] = useState("");
   const [direction, setDirection] = useState<"lent" | "borrowed">("lent");
   const [amount, setAmount] = useState("");
@@ -38,12 +37,14 @@ export default function BorrowingPage() {
 
   async function handleCreateLoan(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || !contactId || !amount) return;
+    if (!user) { alert("Not signed in."); return; }
+    if (!contactId) { alert("Please select a person."); return; }
+    if (!amount) { alert("Please enter an amount."); return; }
     const contact = contacts.find((c) => c.id === contactId);
     if (!contact) return;
     setSaving(true);
     try {
-      const loanData = {
+      const loanData: Omit<Loan, "id"> = {
         userId: user.uid,
         contactId,
         contactName: contact.name,
@@ -53,11 +54,11 @@ export default function BorrowingPage() {
         currency: "USD",
         description: description || `${direction === "lent" ? "Lent to" : "Borrowed from"} ${contact.name}`,
         dateIssued: Timestamp.fromDate(new Date(dateIssued + "T12:00:00")),
-        dueDate: dueDate ? Timestamp.fromDate(new Date(dueDate + "T23:59:59")) : undefined as unknown as Timestamp,
-        status: "active" as const,
+        status: "active",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+      if (dueDate) loanData.dueDate = Timestamp.fromDate(new Date(dueDate + "T23:59:59"));
 
       if (createAgreement && direction === "lent") {
         const terms = `1. ${contact.name} ("Borrower") acknowledges receiving $${parseFloat(amount).toFixed(2)} from ${user.displayName || "the Lender"} ("Lender").\n2. Borrower agrees to repay the full amount${dueDate ? ` by ${new Date(dueDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""}.\n3. Both parties agree this is a binding commitment.\n4. Partial payments are accepted and will be tracked.\n5. This agreement is digitally recorded and timestamped.`;
@@ -69,7 +70,6 @@ export default function BorrowingPage() {
           contact.phone,
         );
 
-        // Update the agreement with lender name
         const { updateAgreement } = await import("@/lib/firebase/firestore");
         await updateAgreement(result.agreementId, {
           lenderName: user.displayName || user.email || "Lender",
@@ -83,6 +83,10 @@ export default function BorrowingPage() {
 
       setAmount(""); setDescription(""); setContactId(""); setDueDate("");
       setShowForm(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert("Could not create loan: " + msg);
+      console.error("createLoan error:", err);
     } finally {
       setSaving(false);
     }
@@ -93,20 +97,21 @@ export default function BorrowingPage() {
     if (!user || !payingLoan || !payAmount) return;
     setSaving(true);
     try {
-      await addLoanPayment(
-        {
-          loanId: payingLoan.id,
-          userId: user.uid,
-          amount: parseFloat(payAmount),
-          date: Timestamp.now(),
-          note: payNote,
-          createdAt: Timestamp.now(),
-        },
-        payingLoan
-      );
+      const payment: Omit<import("@/types").LoanPayment, "id"> = {
+        loanId: payingLoan.id,
+        userId: user.uid,
+        amount: parseFloat(payAmount),
+        date: Timestamp.now(),
+        createdAt: Timestamp.now(),
+      };
+      if (payNote.trim()) payment.note = payNote.trim();
+      await addLoanPayment(payment, payingLoan);
       setPayingLoan(null);
       setPayAmount("");
       setPayNote("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert("Could not record payment: " + msg);
     } finally {
       setSaving(false);
     }
@@ -144,7 +149,6 @@ export default function BorrowingPage() {
         </button>
       </div>
 
-      {/* Overdue Warning */}
       {overdueCount > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-3">
           <AlertTriangle className="text-red-500 flex-shrink-0" size={20} />
@@ -155,7 +159,6 @@ export default function BorrowingPage() {
         </div>
       )}
 
-      {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-sm text-gray-500">Others owe you</p>
@@ -173,7 +176,6 @@ export default function BorrowingPage() {
         </div>
       </div>
 
-      {/* New Loan Form */}
       {showForm && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
           <h2 className="font-semibold text-gray-900 mb-4">Create New Loan</h2>
@@ -242,7 +244,6 @@ export default function BorrowingPage() {
         </div>
       )}
 
-      {/* Agreement Created Modal */}
       {newAgreementLink && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
@@ -273,14 +274,13 @@ export default function BorrowingPage() {
         </div>
       )}
 
-      {/* Payment Modal */}
       {payingLoan && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
             <h2 className="font-bold text-lg text-gray-900 mb-1">Record Payment</h2>
             <p className="text-sm text-gray-500 mb-4">
               {payingLoan.direction === "lent" ? `${payingLoan.contactName} paying you back` : `You paying ${payingLoan.contactName}`}
-              &nbsp;&middot; Outstanding: <strong>{formatCurrency(payingLoan.outstandingBalance)}</strong>
+              &nbsp;· Outstanding: <strong>{formatCurrency(payingLoan.outstandingBalance)}</strong>
             </p>
             <form onSubmit={handlePayment} className="space-y-4">
               <div>
@@ -309,7 +309,6 @@ export default function BorrowingPage() {
         </div>
       )}
 
-      {/* Filter */}
       <div className="flex gap-2 mb-4">
         {(["all", "active", "overdue", "paid"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
@@ -320,7 +319,6 @@ export default function BorrowingPage() {
         ))}
       </div>
 
-      {/* Loan Cards */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
           <p className="text-lg mb-1">No loans yet</p>
@@ -335,7 +333,7 @@ export default function BorrowingPage() {
               <div key={loan.id} className={`bg-white rounded-xl border border-gray-200 p-5 ${loan.status === "overdue" ? "border-red-300 bg-red-50/30" : ""}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`text-sm font-bold ${loan.direction === "lent" ? "text-green-600" : "text-red-500"}`}>
                         {loan.direction === "lent" ? "LENT" : "BORROWED"}
                       </span>
@@ -368,7 +366,7 @@ export default function BorrowingPage() {
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-gray-400">
                     Issued: {formatDate(loan.dateIssued)}
-                    {loan.dueDate && <> &middot; Due: {formatDate(loan.dueDate)}</>}
+                    {loan.dueDate && <> · Due: {formatDate(loan.dueDate)}</>}
                   </div>
                   {loan.status !== "paid" && (
                     <button onClick={() => setPayingLoan(loan)}

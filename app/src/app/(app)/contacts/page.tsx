@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
 import { subscribeContacts, addContact, deleteContact, subscribeLoans } from "@/lib/firebase/firestore";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Trash2, X, User } from "lucide-react";
+import { Plus, Trash2, X, User, ChevronRight } from "lucide-react";
 import type { Contact, Loan } from "@/types";
 
 export default function ContactsPage() {
@@ -111,55 +112,109 @@ export default function ContactsPage() {
           <p className="text-sm">Add people you lend to or borrow from.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {contacts.map((c) => {
-            const bal = getContactBalance(c.id);
+        <>
+          {(() => {
+            const totals = contacts.reduce(
+              (acc, c) => {
+                const b = getContactBalance(c.id);
+                acc.lent += b.lent;
+                acc.borrowed += b.borrowed;
+                return acc;
+              },
+              { lent: 0, borrowed: 0 }
+            );
+            const net = totals.lent - totals.borrowed;
+            if (totals.lent === 0 && totals.borrowed === 0) return null;
             return (
-              <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                      {c.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{c.name}</p>
-                      {c.email && <p className="text-xs text-gray-400">{c.email}</p>}
-                      {c.phone && <p className="text-xs text-gray-400">{c.phone}</p>}
-                    </div>
-                  </div>
-                  <button onClick={() => handleDelete(c.id, c.name)}
-                    className="text-gray-300 hover:text-red-500 transition">
-                    <Trash2 size={16} />
-                  </button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Everyone owes you</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(totals.lent)}</p>
                 </div>
-                {bal.activeLoans > 0 ? (
-                  <div className="space-y-1.5 pt-3 border-t border-gray-100">
-                    {bal.lent > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">They owe you</span>
-                        <span className="font-bold text-green-600">{formatCurrency(bal.lent)}</span>
-                      </div>
-                    )}
-                    {bal.borrowed > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">You owe them</span>
-                        <span className="font-bold text-red-500">{formatCurrency(bal.borrowed)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm pt-1 border-t border-gray-50">
-                      <span className="text-gray-500 font-medium">Net</span>
-                      <span className={`font-bold ${bal.net >= 0 ? "text-green-600" : "text-red-500"}`}>
-                        {bal.net >= 0 ? "They owe " : "You owe "}{formatCurrency(Math.abs(bal.net))}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400 pt-3 border-t border-gray-100">No active loans</p>
-                )}
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">You owe everyone</p>
+                  <p className="text-2xl font-bold text-red-500">{formatCurrency(totals.borrowed)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Net position</p>
+                  <p className={`text-2xl font-bold ${net >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {net >= 0 ? "+" : ""}{formatCurrency(net)}
+                  </p>
+                </div>
               </div>
             );
-          })}
-        </div>
+          })()}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {contacts
+              .sort((a, b) => {
+                const ba = getContactBalance(a.id);
+                const bb = getContactBalance(b.id);
+                return Math.abs(bb.net) - Math.abs(ba.net);
+              })
+              .map((c) => {
+                const bal = getContactBalance(c.id);
+                return (
+                  <div key={c.id} className="bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all group relative">
+                    <Link href={`/contacts/${c.id}`} className="block p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                            {c.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 group-hover:text-indigo-600 transition">
+                              {c.name}
+                            </p>
+                            {c.email && <p className="text-xs text-gray-400">{c.email}</p>}
+                            {c.phone && <p className="text-xs text-gray-400">{c.phone}</p>}
+                          </div>
+                        </div>
+                        <ChevronRight className="text-gray-300 group-hover:text-indigo-500 transition" size={18} />
+                      </div>
+
+                      {bal.activeLoans > 0 ? (
+                        <div className={`rounded-lg p-3 ${bal.net > 0 ? "bg-green-50" : bal.net < 0 ? "bg-red-50" : "bg-gray-50"}`}>
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                            {bal.net > 0 ? `${c.name} owes you` : bal.net < 0 ? `You owe ${c.name}` : "Even"}
+                          </p>
+                          <p className={`text-2xl font-bold ${bal.net > 0 ? "text-green-600" : bal.net < 0 ? "text-red-500" : "text-gray-600"}`}>
+                            {formatCurrency(Math.abs(bal.net))}
+                          </p>
+                          <div className="flex gap-3 mt-2 text-xs">
+                            {bal.lent > 0 && (
+                              <span className="text-gray-500">
+                                Lent: <strong className="text-gray-700">{formatCurrency(bal.lent)}</strong>
+                              </span>
+                            )}
+                            {bal.borrowed > 0 && (
+                              <span className="text-gray-500">
+                                Borrowed: <strong className="text-gray-700">{formatCurrency(bal.borrowed)}</strong>
+                              </span>
+                            )}
+                            <span className="text-gray-400 ml-auto">
+                              {bal.activeLoans} active
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 pt-2 border-t border-gray-100">
+                          No active loans · Click to view history
+                        </p>
+                      )}
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(c.id, c.name)}
+                      className="absolute top-3 right-10 text-gray-300 hover:text-red-500 transition p-1"
+                      title="Delete contact"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+          </div>
+        </>
       )}
     </div>
   );

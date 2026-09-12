@@ -35,7 +35,8 @@ export default function ContactsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || !name.trim()) return;
+    if (!user) { alert("Not signed in. Please refresh and log in again."); return; }
+    if (!name.trim()) { alert("Please enter a name."); return; }
     setSaving(true);
     try {
       await addContact({
@@ -47,6 +48,10 @@ export default function ContactsPage() {
       });
       setName(""); setEmail(""); setPhone("");
       setShowForm(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert("Could not save contact: " + msg + "\n\nIf you see 'permission-denied' or 'Missing or insufficient permissions', you need to update your Firestore Security Rules.");
+      console.error("addContact error:", err);
     } finally {
       setSaving(false);
     }
